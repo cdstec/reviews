@@ -1,0 +1,287 @@
+image: docker:stable
+
+variables:
+  DOCKER_DRIVER: overlay2
+  APP_NAME: "${CI_PROJECT_NAME}"
+  REGION: "ap-northeast-2"
+  EKS_NAME: "EKS-CLS-SAMPLE"
+  K8S_SVC_FILE_NAME: "cicd-service"
+  K8S_DEPLOY_FILE_NAME: "cicd-deployment"
+  NAMESPACE: "samplens"
+  REGISTRY_URL: ${ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com
+
+stages:
+  - build
+  - package
+  - deploy-dev
+  # - rollback-dev
+
+gradle-build:
+  image: gradle:jdk8-openj9
+  stage: build
+  script:
+    - gradle clean build
+
+  artifacts:
+    when: always
+    paths:
+      - ./*
+    expire_in: 1 days
+
+  only:
+    - develop
+    - master
+
+docker-build-v1:
+  stage: package
+  variables: 
+    APP_NAME: ${CI_PROJECT_NAME}-v1
+
+  before_script:
+    - apk update
+    - apk add --no-cache
+      aws-cli
+    - apk add --no-cache jq
+  script:
+    # - aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "$(aws sts get-caller-identity --query Account --output text).dkr.ecr.ap-northeast-2.amazonaws.com"
+
+    - aws --version
+    #- aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/
+    - $(aws ecr get-login --no-include-email --region ${REGION})
+    - export IS_REPO=`aws ecr describe-repositories --region ${REGION} | jq -r .repositories[].repositoryName| grep ${APP_NAME}\$ | wc -l`
+    - echo $IS_REPO
+    - echo ${ECR_LIFECYCLE}
+    - >
+      if [ "$IS_REPO" == "0" ]; then
+        aws ecr create-repository --repository-name ${APP_NAME} --region ${REGION} --image-scanning-configuration scanOnPush=true
+        aws ecr put-lifecycle-policy --repository-name ${APP_NAME} --region ${REGION} --lifecycle-policy-text "file://$ECR_LIFECYCLE"
+      fi
+    ## 정책 추가 script 추가
+    - ls -lrt
+    - docker build -t ${APP_NAME}:${CI_COMMIT_SHORT_SHA} --build-arg service_version=v1 .
+    - docker tag ${APP_NAME}:${CI_COMMIT_SHORT_SHA} ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker tag ${APP_NAME}:${CI_COMMIT_SHORT_SHA} ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+
+    ########## docker image to ECR push #########
+    - $(aws ecr get-login --no-include-email --region ${REGION})
+    - docker push ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker push ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+
+    ########## docker image delete ###############
+    - docker rmi ${APP_NAME}:${CI_COMMIT_SHORT_SHA}
+    - docker rmi ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker rmi ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+  only:
+    - develop
+    - master
+
+docker-build-v2:
+  stage: package
+  variables: 
+    APP_NAME: ${CI_PROJECT_NAME}-v2
+
+  before_script:
+    - apk update
+    - apk add --no-cache
+      aws-cli
+    - apk add --no-cache jq
+  script:
+    # - aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "$(aws sts get-caller-identity --query Account --output text).dkr.ecr.ap-northeast-2.amazonaws.com"
+
+    - aws --version
+    #- aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/
+    - $(aws ecr get-login --no-include-email --region ${REGION})
+    - export IS_REPO=`aws ecr describe-repositories --region ${REGION} | jq -r .repositories[].repositoryName| grep ${APP_NAME}\$ | wc -l`
+    - echo $IS_REPO
+    - echo ${ECR_LIFECYCLE}
+    - >
+      if [ "$IS_REPO" == "0" ]; then
+        aws ecr create-repository --repository-name ${APP_NAME} --region ${REGION} --image-scanning-configuration scanOnPush=true
+        aws ecr put-lifecycle-policy --repository-name ${APP_NAME} --region ${REGION} --lifecycle-policy-text "file://$ECR_LIFECYCLE"
+      fi
+    ## 정책 추가 script 추가
+    - ls -lrt
+    - docker build -t ${APP_NAME}:${CI_COMMIT_SHORT_SHA} --build-arg service_version=v2 --build-arg enable_ratings=true .
+    - docker tag ${APP_NAME}:${CI_COMMIT_SHORT_SHA} ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker tag ${APP_NAME}:${CI_COMMIT_SHORT_SHA} ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+
+    ########## docker image to ECR push #########
+    - $(aws ecr get-login --no-include-email --region ${REGION})
+    - docker push ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker push ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+
+    ########## docker image delete ###############
+    - docker rmi ${APP_NAME}:${CI_COMMIT_SHORT_SHA}
+    - docker rmi ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker rmi ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+  only:
+    - develop
+    - master
+
+docker-build-v3:
+  stage: package
+  variables: 
+    APP_NAME: ${CI_PROJECT_NAME}-v3
+  before_script:
+    - apk update
+    - apk add --no-cache
+      aws-cli
+    - apk add --no-cache jq
+  script:
+    # - aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "$(aws sts get-caller-identity --query Account --output text).dkr.ecr.ap-northeast-2.amazonaws.com"
+
+    - aws --version
+    #- aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/
+    - $(aws ecr get-login --no-include-email --region ${REGION})
+    - export IS_REPO=`aws ecr describe-repositories --region ${REGION} | jq -r .repositories[].repositoryName| grep ${APP_NAME}\$ | wc -l`
+    - echo $IS_REPO
+    - echo ${ECR_LIFECYCLE}
+    - >
+      if [ "$IS_REPO" == "0" ]; then
+        aws ecr create-repository --repository-name ${APP_NAME} --region ${REGION} --image-scanning-configuration scanOnPush=true
+        aws ecr put-lifecycle-policy --repository-name ${APP_NAME} --region ${REGION} --lifecycle-policy-text "file://$ECR_LIFECYCLE"
+      fi
+    ## 정책 추가 script 추가
+    - ls -lrt
+    - docker build -t ${APP_NAME}:${CI_COMMIT_SHORT_SHA} --build-arg service_version=v3 --build-arg enable_ratings=true --build-arg star_color=red .
+    - docker tag ${APP_NAME}:${CI_COMMIT_SHORT_SHA} ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker tag ${APP_NAME}:${CI_COMMIT_SHORT_SHA} ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+
+    ########## docker image to ECR push #########
+    - $(aws ecr get-login --no-include-email --region ${REGION})
+    - docker push ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker push ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+
+    ########## docker image delete ###############
+    - docker rmi ${APP_NAME}:${CI_COMMIT_SHORT_SHA}
+    - docker rmi ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+    - docker rmi ${REGISTRY_URL}/${APP_NAME}:${CI_COMMIT_BRANCH}-latest
+  only:
+    - develop
+    - master
+
+# rolling-update
+deploy-v1:
+  stage: deploy-dev
+  # variables: 
+  #   APP_NAME: ${APP_NAME}-v1
+  image: dtzar/helm-kubectl
+  #image: hominservice/deploy:latest
+  before_script:
+    - apk update
+    - apk add --no-cache
+      aws-cli
+    - apk add --no-cache jq
+    
+  script:
+    - aws eks --region ${REGION} update-kubeconfig --name ${EKS_NAME}  # EKS_NAME은 dev, stg, prd 환경별로
+    - kubectl config set-context $(kubectl config current-context) --namespace=${NAMESPACE}
+    - aws sts get-caller-identity
+    - aws ecr tag-resource --resource-arn arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/${APP_NAME}-v1 --tags Key=dev,Value=${CI_COMMIT_SHORT_SHA} --region ${REGION}
+    - awk '!/version/' ${K8S_SVC_FILE_NAME}.yml > temp && mv temp ${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/<APP_NAME>/${APP_NAME}/g" ./${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/<NAMESPACE>/${NAMESPACE}/g" ${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/-<VERSION>//g" ./${K8S_DEPLOY_FILE_NAME}.yml
+    - awk '!/<POD_VERSION>/' ${K8S_DEPLOY_FILE_NAME}.yml > temp && mv temp ${K8S_DEPLOY_FILE_NAME}.yml # dev POD_VERSION 삭제 (롤링 업데이트 이므로)
+    - sed -i "s/<APP_NAME>/${APP_NAME}/g" ./${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<VERSION>/${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<APPVERSION>/v1/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<NAMESPACE>/${NAMESPACE}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<REPLICA_NUM>/1/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<CONFIGMAP_COMMON_NAME>/config-backend/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<CONFIGMAP_NAME>/config-${APP_NAME,,}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<ECR_REPO_URL>/${REGISTRY_URL}\/${APP_NAME}-v1/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - cat ${K8S_DEPLOY_FILE_NAME}.yml
+    - cat ${K8S_SVC_FILE_NAME}.yml
+    - cat ${K8S_DEPLOY_FILE_NAME}.yml | kubectl apply -f -
+    - cat ${K8S_SVC_FILE_NAME}.yml | kubectl apply -f -
+  only:
+    - develop
+    - master
+
+deploy-v2:
+  stage: deploy-dev
+  image: dtzar/helm-kubectl
+  before_script:
+    - apk update
+    - apk add --no-cache
+      aws-cli
+    - apk add --no-cache jq
+    
+  script:
+    - aws eks --region ${REGION} update-kubeconfig --name ${EKS_NAME}  # EKS_NAME은 dev, stg, prd 환경별로
+    - kubectl config set-context $(kubectl config current-context) --namespace=${NAMESPACE}
+    - aws sts get-caller-identity
+    - aws ecr tag-resource --resource-arn arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/${APP_NAME}-v2 --tags Key=dev,Value=${CI_COMMIT_SHORT_SHA} --region ${REGION}
+    - awk '!/version/' ${K8S_SVC_FILE_NAME}.yml > temp && mv temp ${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/<APP_NAME>/${APP_NAME}/g" ./${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/-<VERSION>//g" ./${K8S_DEPLOY_FILE_NAME}.yml
+    - awk '!/<POD_VERSION>/' ${K8S_DEPLOY_FILE_NAME}.yml > temp && mv temp ${K8S_DEPLOY_FILE_NAME}.yml # dev POD_VERSION 삭제 (롤링 업데이트 이므로)
+    - sed -i "s/<APP_NAME>/${APP_NAME}/g" ./${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<VERSION>/${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<APPVERSION>/v2/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<NAMESPACE>/${NAMESPACE}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<NAMESPACE>/${NAMESPACE}/g" ${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/<REPLICA_NUM>/1/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<CONFIGMAP_COMMON_NAME>/config-backend/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<CONFIGMAP_NAME>/config-${APP_NAME,,}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<ECR_REPO_URL>/${REGISTRY_URL}\/${APP_NAME}-v2/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - cat ${K8S_DEPLOY_FILE_NAME}.yml
+    - cat ${K8S_SVC_FILE_NAME}.yml
+    - cat ${K8S_DEPLOY_FILE_NAME}.yml | kubectl apply -f -
+    - cat ${K8S_SVC_FILE_NAME}.yml | kubectl apply -f -
+  only:
+    - develop
+    - master
+
+deploy-v3:
+  stage: deploy-dev
+  image: dtzar/helm-kubectl
+  before_script:
+    - apk update
+    - apk add --no-cache
+      aws-cli
+    - apk add --no-cache jq
+    
+  script:
+    - aws eks --region ${REGION} update-kubeconfig --name ${EKS_NAME}  # EKS_NAME은 dev, stg, prd 환경별로
+    - kubectl config set-context $(kubectl config current-context) --namespace=${NAMESPACE}
+    - aws sts get-caller-identity
+    - aws ecr tag-resource --resource-arn arn:aws:ecr:${REGION}:${ACCOUNT_ID}:repository/${APP_NAME}-v3 --tags Key=dev,Value=${CI_COMMIT_SHORT_SHA} --region ${REGION}
+    - awk '!/version/' ${K8S_SVC_FILE_NAME}.yml > temp && mv temp ${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/<APP_NAME>/${APP_NAME}/g" ./${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/-<VERSION>//g" ./${K8S_DEPLOY_FILE_NAME}.yml
+    - awk '!/<POD_VERSION>/' ${K8S_DEPLOY_FILE_NAME}.yml > temp && mv temp ${K8S_DEPLOY_FILE_NAME}.yml # dev POD_VERSION 삭제 (롤링 업데이트 이므로)
+    - sed -i "s/<APP_NAME>/${APP_NAME}/g" ./${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<VERSION>/${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<APPVERSION>/v3/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<NAMESPACE>/${NAMESPACE}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<NAMESPACE>/${NAMESPACE}/g" ${K8S_SVC_FILE_NAME}.yml
+    - sed -i "s/<REPLICA_NUM>/1/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<CONFIGMAP_COMMON_NAME>/config-backend/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<CONFIGMAP_NAME>/config-${APP_NAME,,}/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - sed -i "s/<ECR_REPO_URL>/${REGISTRY_URL}\/${APP_NAME}-v3/g" ${K8S_DEPLOY_FILE_NAME}.yml
+    - cat ${K8S_DEPLOY_FILE_NAME}.yml
+    - cat ${K8S_SVC_FILE_NAME}.yml
+    - cat ${K8S_DEPLOY_FILE_NAME}.yml | kubectl apply -f -
+    - cat ${K8S_SVC_FILE_NAME}.yml | kubectl apply -f -
+  only:
+    - develop
+    - master
+
+# rollback-dev:
+#   stage: rollback-dev
+#   dependencies: [ ]
+#   image: service/deploy:latest
+#   before_script:
+#     - aws s3 cp s3://${BUCKET_NAME}/messages/message_version ./message_version
+#     - CI_COMMIT_SHORT_SHA=$CI_COMMIT_SHORT_SHA-`cat ./message_version`
+#     - aws eks --region ${REGION} update-kubeconfig --name ${EKS_NAME}
+#     - kubectl config set-context $(kubectl config current-context) --namespace=${NAMESPACE}
+#     - export NEW_DEPLOYMENT_NAME=`kubectl get deployment --no-headers -n default -o custom-columns=":metadata.name"  | grep cicd-deployment`
+#   script:
+#     - kubectl get svc
+#     - aws sts get-caller-identity
+#     - kubectl rollout undo deploy $NEW_DEPLOYMENT_NAME
+#   #when: on_failure
+#   when: manual

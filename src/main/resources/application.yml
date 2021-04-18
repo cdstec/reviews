@@ -1,0 +1,40 @@
+spring:
+  profiles:
+    active: local
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+server:
+  port: 9080
+
+app:
+  color: yellow
+
+amazon:
+  dynamodb:
+    region: ap-northeast-2
+
+---
+spring:
+  config:
+    activate:
+      on-profile: kubernetes
+  redis:
+    host: cls-rs-sample.6beehq.0001.apn2.cache.amazonaws.com
+    port: 6379
+
+server:
+  port: 9080
+
+app:
+  color: ${COLOR_WHICH}
+
+amazon:
+  dynamodb:
+    region: ${dynamodb_region}
+  aws:
+    access-key: ${aws_accessKey}
+    secret-key: ${aws_secretKey}

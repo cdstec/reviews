@@ -1,0 +1,51 @@
+plugins {
+	id 'org.springframework.boot' version '2.4.4'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+}
+
+group = 'com.cdstec'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencyManagement {
+	imports {
+		mavenBom('com.amazonaws:aws-xray-recorder-sdk-bom:2.4.0')
+	}
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	implementation group:'javax.websocket', name:'javax.websocket-api', version:'1.1'
+	implementation group:'javax.ws.rs', name:'javax.ws.rs-api', version:'2.0'
+	implementation group:'javax.json', name:'javax.json-api', version:'1.0'
+	implementation 'javax.annotation:javax.annotation-api:1.2'
+	implementation 'javax.inject:javax.inject:1'
+	implementation 'javax.enterprise.concurrent:javax.enterprise.concurrent-api:1.0'
+	implementation 'javax.enterprise:cdi-api:1.2'
+	implementation 'io.swagger:swagger-annotations:1.5.0'
+	implementation 'org.glassfish.jersey.core:jersey-common:2.22.2'
+	implementation group: 'org.glassfish.jersey.core', name: 'jersey-client', version: '2.22.2'
+	implementation group: 'org.glassfish', name: 'javax.json', version: '1.1.4'
+	compile("com.amazonaws:aws-xray-recorder-sdk-core")
+	compile("com.amazonaws:aws-xray-recorder-sdk-aws-sdk")
+	compile("com.amazonaws:aws-xray-recorder-sdk-aws-sdk-instrumentor")
+	compile("com.amazonaws:aws-xray-recorder-sdk-apache-http")
+	compile("com.amazonaws:aws-xray-recorder-sdk-spring")
+	implementation group: 'com.github.derjust', name: 'spring-data-dynamodb', version: '5.1.0'
+	implementation('org.springframework.boot:spring-boot-starter-data-redis')
+	implementation('org.springframework.session:spring-session-data-redis')
+}

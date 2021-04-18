@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <APP_NAME>-<APPVERSION>
+  namespace: <NAMESPACE>
+spec:
+  replicas: <REPLICA_NUM>
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: <APP_NAME>
+      version: <APPVERSION>
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: <APP_NAME>
+        version: <APPVERSION>
+    spec:
+      containers:
+      - name: <APP_NAME>
+        image: "<ECR_REPO_URL>:<VERSION>"
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: <CONFIGMAP_NAME>
+        env:
+        - name: LOG_DIR
+          value: "/tmp/logs"
+        ports:
+        - containerPort: 9080
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: wlp-output
+          mountPath: /opt/ibm/wlp/output
+        securityContext:
+          runAsUser: 1000
+      volumes:
+      - name: wlp-output
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+          # envFrom:
+          #   - configMapRef:
+          #       name: <CONFIGMAP_COMMON_NAME>
+          #   - configMapRef:
+          #       name: <CONFIGMAP_NAME>
+          #          livenessProbe:
+          #            httpGet:
+          #              path: "/<APP_NAME>/actuator/health"
+          #              port: 8080
+          #              scheme: HTTP
+          #            initialDelaySeconds: 10
+          #            periodSeconds: 3
+          #            timeoutSeconds: 5
+          #          readinessProbe:
+          #            httpGet:
+          #              path: "/<APP_NAME>/actuator/health"
+          #              port: 8080
+          #              scheme: HTTP
+          #            initialDelaySeconds: 10
+          #            periodSeconds: 3
+          #            timeoutSeconds: 5
+#          resources:
+#            requests:
+#              memory: 1000Mi
+#              cpu: 500m
+#            limits:
+#              memory: 1700Mi
+#              cpu: 900m
+      initContainers:
+        - name: proxyinit
+          image: 840364872350.dkr.ecr.us-west-2.amazonaws.com/aws-appmesh-proxy-route-manager:v3-prod
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: "APPMESH_START_ENABLED"
+              value: "1"
+            - name: "APPMESH_IGNORE_UID"
+              value: "1337"
+            - name: "APPMESH_ENVOY_INGRESS_PORT"
+              value: "15000"
+            - name: "APPMESH_ENVOY_EGRESS_PORT"
+              value: "15001"
+            - name: "APPMESH_APP_PORTS"
+              value: "9080"
+            - name: "APPMESH_EGRESS_IGNORED_IP"
+              value: "169.254.169.254"
+            - name: "APPMESH_EGRESS_IGNORED_PORTS"
+              value: "22,6379"
