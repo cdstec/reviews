@@ -40,11 +40,11 @@ dependencies {
 	implementation 'org.glassfish.jersey.core:jersey-common:2.22.2'
 	implementation group: 'org.glassfish.jersey.core', name: 'jersey-client', version: '2.22.2'
 	implementation group: 'org.glassfish', name: 'javax.json', version: '1.1.4'
-	compile("com.amazonaws:aws-xray-recorder-sdk-core")
-	compile("com.amazonaws:aws-xray-recorder-sdk-aws-sdk")
-	compile("com.amazonaws:aws-xray-recorder-sdk-aws-sdk-instrumentor")
-	compile("com.amazonaws:aws-xray-recorder-sdk-apache-http")
-	compile("com.amazonaws:aws-xray-recorder-sdk-spring")
+	implementation("com.amazonaws:aws-xray-recorder-sdk-core")
+	implementation("com.amazonaws:aws-xray-recorder-sdk-aws-sdk")
+	implementation("com.amazonaws:aws-xray-recorder-sdk-aws-sdk-instrumentor")
+	implementation("com.amazonaws:aws-xray-recorder-sdk-apache-http")
+	implementation("com.amazonaws:aws-xray-recorder-sdk-spring")
 	implementation group: 'com.github.derjust', name: 'spring-data-dynamodb', version: '5.1.0'
 	implementation('org.springframework.boot:spring-boot-starter-data-redis')
 	implementation('org.springframework.session:spring-session-data-redis')
